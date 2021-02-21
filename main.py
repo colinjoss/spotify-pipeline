@@ -7,6 +7,18 @@ from spotipy.oauth2 import SpotifyOAuth
 import pandas
 import datetime
 
+
+def milliseconds_to_hms(ms):
+    """Converts an int of milliseconds to a string in hours : minutes: seconds form."""
+    s, ms = divmod(ms, 1000)
+    m, s = divmod(s, 60)
+    h, m = divmod(m, 60)
+    return f"{h}:{m}:{s}"
+
+
+milliseconds_to_hms(260741)
+
+
 if __name__ == "__main__":
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
         client_id="7406bc4c83534c57bdc0cf3e8b6991d5",
@@ -29,6 +41,8 @@ if __name__ == "__main__":
         duration.append(song["track"]["duration_ms"])
         played_at_list.append(song["played_at"])
         timestamps.append(song["played_at"][0:10])
+
+    # duration = map(function, duration)
 
     song_dict = {
         "song_name": song_names,
