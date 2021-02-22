@@ -30,12 +30,6 @@ def get_timestamps_from_csv(csv_file):
     return csv_timestamps
 
 
-def remove_duplicates_from_data(csv_file, timestamps):
-
-    for row in csv_file:
-        if timestamps
-
-
 # func: remove duplicates from data
 # func: remove null from data
 # func: read_csv
@@ -60,14 +54,27 @@ if __name__ == "__main__":
     results = sp.current_user_recently_played(limit=50)
 
     for song in results["items"]:
-        song_names.append(song["track"]["name"])
-        album_names.append(song["track"]["album"]["name"])
-        artist_names.append(song["track"]["album"]["artists"][0]["name"])
-        duration.append(song["track"]["duration_ms"])
-        played_at_list.append(song["played_at"][0:10])
-        timestamps.append(song["played_at"])
+        if song is not None or song["track"] is not None:
+            song_names.append(song["track"]["name"])
+            album_names.append(song["track"]["album"]["name"])
+            artist_names.append(song["track"]["album"]["artists"][0]["name"])
+            duration.append(song["track"]["duration_ms"])
+            played_at_list.append(song["played_at"][0:10])
+            timestamps.append(song["played_at"])
 
     duration = [milliseconds_to_hms(length) for length in duration]
+
+    csv_ts = get_timestamps_from_csv(read_csv("test.csv"))
+    i = 0
+    for ts in timestamps:
+        if ts in csv_ts:
+            song_names.remove(song_names[i])
+            album_names.remove(album_names[i])
+            artist_names.remove(artist_names[i])
+            duration.remove(duration[i])
+            played_at_list.remove(played_at_list[i])
+            timestamps.remove(ts)
+        i += 1
 
     song_dict = {
         "song_name": song_names,
@@ -78,10 +85,9 @@ if __name__ == "__main__":
         "timestamps": timestamps
     }
 
-    song_df = pandas.DataFrame(song_dict, columns=["song_name", "album_name", "artist_name", "duration", "played_at", "timestamps"])
+    song_df = pandas.DataFrame(song_dict, columns=["song_name", "album_name", "artist_name",
+                                                   "duration", "played_at", "timestamps"])
     with open("test.csv", 'a', newline="") as outfile:
         song_df.to_csv(outfile, header=False)
-
-    read_csv("test.csv")
 
     print(song_df)
