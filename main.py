@@ -20,8 +20,20 @@ def milliseconds_to_hms(ms):
 def read_csv(filename):
     with open(f"{filename}", "r") as infile:
         csv_file = csv.reader(infile)
-        for row in csv_file:
-            print(row)
+        return csv_file
+
+
+def get_timestamps_from_csv(csv_file):
+    csv_timestamps = []
+    for row in csv_file:
+        csv_timestamps += row[6]
+    return csv_timestamps
+
+
+def remove_duplicates_from_data(csv_file, timestamps):
+
+    for row in csv_file:
+        if timestamps
 
 
 # func: remove duplicates from data
@@ -69,5 +81,7 @@ if __name__ == "__main__":
     song_df = pandas.DataFrame(song_dict, columns=["song_name", "album_name", "artist_name", "duration", "played_at", "timestamps"])
     with open("test.csv", 'a', newline="") as outfile:
         song_df.to_csv(outfile, header=False)
+
+    read_csv("test.csv")
 
     print(song_df)
