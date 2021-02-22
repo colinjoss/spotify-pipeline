@@ -17,24 +17,13 @@ def milliseconds_to_hms(ms):
     return f"{h}:{m}:{s}"
 
 
-def read_csv(filename):
+def get_timestamps_from_csv(filename):
+    csv_timestamps = []
     with open(f"{filename}", "r") as infile:
         csv_file = csv.reader(infile)
-        return csv_file
-
-
-def get_timestamps_from_csv(csv_file):
-    csv_timestamps = []
-    for row in csv_file:
-        csv_timestamps += row[6]
+        for row in csv_file:
+            csv_timestamps += [row[6]]
     return csv_timestamps
-
-
-# func: remove duplicates from data
-# func: remove null from data
-# func: read_csv
-# func: find duplicates in csv
-# func:
 
 
 if __name__ == "__main__":
@@ -51,30 +40,21 @@ if __name__ == "__main__":
     played_at_list = []
     timestamps = []
 
-    results = sp.current_user_recently_played(limit=50)
+    results = sp.current_user_recently_played(limit=10)
+
+    csv_ts = get_timestamps_from_csv("test.csv")
 
     for song in results["items"]:
-        if song is not None or song["track"] is not None:
-            song_names.append(song["track"]["name"])
-            album_names.append(song["track"]["album"]["name"])
-            artist_names.append(song["track"]["album"]["artists"][0]["name"])
-            duration.append(song["track"]["duration_ms"])
-            played_at_list.append(song["played_at"][0:10])
-            timestamps.append(song["played_at"])
+        if song is not None:
+            if song["played_at"] not in csv_ts:
+                song_names.append(song["track"]["name"])
+                album_names.append(song["track"]["album"]["name"])
+                artist_names.append(song["track"]["album"]["artists"][0]["name"])
+                duration.append(song["track"]["duration_ms"])
+                played_at_list.append(song["played_at"][0:10])
+                timestamps.append(song["played_at"])
 
     duration = [milliseconds_to_hms(length) for length in duration]
-
-    csv_ts = get_timestamps_from_csv(read_csv("test.csv"))
-    i = 0
-    for ts in timestamps:
-        if ts in csv_ts:
-            song_names.remove(song_names[i])
-            album_names.remove(album_names[i])
-            artist_names.remove(artist_names[i])
-            duration.remove(duration[i])
-            played_at_list.remove(played_at_list[i])
-            timestamps.remove(ts)
-        i += 1
 
     song_dict = {
         "song_name": song_names,
