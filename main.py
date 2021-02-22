@@ -5,6 +5,7 @@
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import pandas
+import csv
 import datetime
 
 
@@ -16,7 +17,12 @@ def milliseconds_to_hms(ms):
     return f"{h}:{m}:{s}"
 
 
-milliseconds_to_hms(260741)
+def append_to_csv(data):
+    with open("spotify_data.csv", "a") as outfile:
+        for row in data:
+            outfile.write(row)
+
+
 
 
 if __name__ == "__main__":
@@ -42,7 +48,7 @@ if __name__ == "__main__":
         played_at_list.append(song["played_at"])
         timestamps.append(song["played_at"][0:10])
 
-    # duration = map(function, duration)
+    duration = [milliseconds_to_hms(length) for length in duration]
 
     song_dict = {
         "song_name": song_names,
