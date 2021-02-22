@@ -17,12 +17,18 @@ def milliseconds_to_hms(ms):
     return f"{h}:{m}:{s}"
 
 
-def append_to_csv(data):
-    with open("spotify_data.csv", "a") as outfile:
-        for row in data:
-            outfile.write(row)
+def read_csv(filename):
+    with open(f"{filename}", "r") as infile:
+        csv_file = csv.reader(infile)
+        for row in csv_file:
+            print(row)
 
 
+# func: remove duplicates from data
+# func: remove null from data
+# func: read_csv
+# func: find duplicates in csv
+# func:
 
 
 if __name__ == "__main__":
@@ -40,13 +46,14 @@ if __name__ == "__main__":
     timestamps = []
 
     results = sp.current_user_recently_played(limit=50)
+
     for song in results["items"]:
         song_names.append(song["track"]["name"])
         album_names.append(song["track"]["album"]["name"])
         artist_names.append(song["track"]["album"]["artists"][0]["name"])
         duration.append(song["track"]["duration_ms"])
-        played_at_list.append(song["played_at"])
-        timestamps.append(song["played_at"][0:10])
+        played_at_list.append(song["played_at"][0:10])
+        timestamps.append(song["played_at"])
 
     duration = [milliseconds_to_hms(length) for length in duration]
 
@@ -60,5 +67,7 @@ if __name__ == "__main__":
     }
 
     song_df = pandas.DataFrame(song_dict, columns=["song_name", "album_name", "artist_name", "duration", "played_at", "timestamps"])
+    with open("test.csv", 'a', newline="") as outfile:
+        song_df.to_csv(outfile, header=False)
 
     print(song_df)
