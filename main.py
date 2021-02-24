@@ -1,5 +1,5 @@
 # Programmer: Colin Joss
-# Last date updated: 2-21-2021
+# Last date updated: 2-22-2021
 # Description:
 
 import spotipy
@@ -18,6 +18,7 @@ def milliseconds_to_hms(ms):
 
 
 def get_timestamps_from_csv(filename):
+    """Collects the timestamps from rows in a preexisting csv into a list."""
     csv_timestamps = []
     with open(f"{filename}", "r") as infile:
         csv_file = csv.reader(infile)
@@ -26,7 +27,19 @@ def get_timestamps_from_csv(filename):
     return csv_timestamps
 
 
+def convert_to_ascii(string):
+    """"""
+    try:
+        string.encode(encoding='utf-8').decode('ascii')
+    except UnicodeDecodeError:
+        return string.encode('utf-8')
+    return string
+
+
 if __name__ == "__main__":
+
+    # EXTRACT
+
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
         client_id="7406bc4c83534c57bdc0cf3e8b6991d5",
         client_secret="6d5fa9a24d444ef89793c953aa88d87a",
@@ -37,37 +50,57 @@ if __name__ == "__main__":
     album_names = []
     artist_names = []
     duration = []
-    played_at_list = []
+    play_date = []
     timestamps = []
 
-    results = sp.current_user_recently_played(limit=10)
+    today = datetime.datetime.today()
+    now_unix_timestamp = int(today.timestamp()) * 1000
+    yesterday_unix_timestamp = now_unix_timestamp - 86400
 
-    csv_ts = get_timestamps_from_csv("test.csv")
+    results = sp.current_user_recently_played(limit=50, after=yesterday_unix_timestamp, before=now_unix_timestamp)
 
     for song in results["items"]:
-        if song is not None:
-            if song["played_at"] not in csv_ts:
-                song_names.append(song["track"]["name"])
-                album_names.append(song["track"]["album"]["name"])
-                artist_names.append(song["track"]["album"]["artists"][0]["name"])
-                duration.append(song["track"]["duration_ms"])
-                played_at_list.append(song["played_at"][0:10])
-                timestamps.append(song["played_at"])
-
-    duration = [milliseconds_to_hms(length) for length in duration]
+        song_names.append(convert_to_ascii(song["track"]["name"]))
+        album_names.append(convert_to_ascii(song["track"]["album"]["name"]))
+        artist_names.append(convert_to_ascii(song["track"]["album"]["artists"][0]["name"]))
+        duration.append(song["track"]["duration_ms"])
+        play_date.append(song["played_at"][0:10])
+        timestamps.append(song["played_at"])
 
     song_dict = {
         "song_name": song_names,
         "album_name": album_names,
         "artist_name": artist_names,
         "duration": duration,
-        "played_at": played_at_list,
+        "play_date": play_date,
         "timestamps": timestamps
     }
 
     song_df = pandas.DataFrame(song_dict, columns=["song_name", "album_name", "artist_name",
-                                                   "duration", "played_at", "timestamps"])
-    with open("test.csv", 'a', newline="") as outfile:
-        song_df.to_csv(outfile, header=False)
+                                                   "duration", "played_date", "timestamps"])
 
-    print(song_df)
+    # TRANSFORM
+
+    # Stop execution if no songs played in the last 24 hours
+    if song_df.empty:
+        raise Exception("No data retrieved within the past 24 hours. Finishing execution.")
+
+    # Stop execution if there are duplicates in the data
+    if song_df["played_at"].is_unique is False:
+        raise Exception("Primary key check violated. Finishing execution.")
+
+    # Stop execution if null values returned
+    if song_df.isnull().values.any():
+        raise Exception("Null values found. Finishing execution.")
+
+    # Convert song lengths to h:m:s strings
+    song_df["duration"].apply(milliseconds_to_hms)
+
+    # LOAD
+
+    with open("spotify-data.csv", 'a', newline="") as outfile:  # *** LOAD
+        song_df.to_csv(outfile, header=False, encoding="utf-8")
+
+# Transform (the data so it's useful, i.e. removing duplicates)
+# Load (into your database)
+
