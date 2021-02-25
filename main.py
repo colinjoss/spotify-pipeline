@@ -7,6 +7,9 @@ from spotipy.oauth2 import SpotifyOAuth
 import pandas
 import csv
 import datetime
+import pytz
+from pytz import timezone
+# print(pytz.common_timezones)
 
 
 def milliseconds_to_hms(ms):
@@ -36,71 +39,84 @@ def convert_to_ascii(string):
     return string
 
 
+def convert_timestamp_to_pfc(timestamp):
+    stockholm = timezone("Europe/Stockholm")
+    seattle = timezone("US/Pacific")
+
+    timestamp = timestamp[0:10] + " " + timestamp[11:19]
+    timestamp_dt_obj = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+
+    timestamp_localized = stockholm.localize(timestamp_dt_obj)
+    return timestamp_localized.astimezone(seattle)
+
+
 if __name__ == "__main__":
 
-    # EXTRACT
+    # EXTRACT ------------------------------------------------
 
+    # Authorize access to my Spotify account
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
         client_id="7406bc4c83534c57bdc0cf3e8b6991d5",
         client_secret="6d5fa9a24d444ef89793c953aa88d87a",
         redirect_uri="https://www.google.com/",
         scope="user-read-recently-played"))
 
+    # Set up lists to store data
     song_names = []
     album_names = []
     artist_names = []
     duration = []
-    play_date = []
     timestamps = []
 
-    today = datetime.datetime.today()
+    # Calculate current timestamp and a timestamp 24 hours ago from now
+    today = datetime.datetime.now()
     now_unix_timestamp = int(today.timestamp()) * 1000
     yesterday_unix_timestamp = now_unix_timestamp - 86400
 
-    results = sp.current_user_recently_played(limit=50, after=yesterday_unix_timestamp, before=now_unix_timestamp)
+    # Request access for recently played songs within the given time frame
+    results = sp.current_user_recently_played(limit=50)
 
+    # Add data to the appropriate list
     for song in results["items"]:
         song_names.append(convert_to_ascii(song["track"]["name"]))
         album_names.append(convert_to_ascii(song["track"]["album"]["name"]))
         artist_names.append(convert_to_ascii(song["track"]["album"]["artists"][0]["name"]))
         duration.append(song["track"]["duration_ms"])
-        play_date.append(song["played_at"][0:10])
         timestamps.append(song["played_at"])
 
+    # Put acquired data in a data frame
     song_dict = {
         "song_name": song_names,
         "album_name": album_names,
         "artist_name": artist_names,
         "duration": duration,
-        "play_date": play_date,
         "timestamps": timestamps
     }
 
     song_df = pandas.DataFrame(song_dict, columns=["song_name", "album_name", "artist_name",
-                                                   "duration", "played_date", "timestamps"])
+                                                   "duration", "timestamps"])
 
-    # TRANSFORM
+    # TRANSFORM ------------------------------------------------
 
     # Stop execution if no songs played in the last 24 hours
     if song_df.empty:
         raise Exception("No data retrieved within the past 24 hours. Finishing execution.")
 
     # Stop execution if there are duplicates in the data
-    if song_df["played_at"].is_unique is False:
+    if song_df["timestamps"].is_unique is False:
         raise Exception("Primary key check violated. Finishing execution.")
 
     # Stop execution if null values returned
     if song_df.isnull().values.any():
         raise Exception("Null values found. Finishing execution.")
 
-    # Convert song lengths to h:m:s strings
-    song_df["duration"].apply(milliseconds_to_hms)
+    # Convert timestamps to US/Pacific time
+    song_df["timestamps"] = song_df["timestamps"].apply(convert_timestamp_to_pfc)
 
-    # LOAD
+    # Convert song lengths to h:m:s strings
+    song_df["duration"] = song_df["duration"].apply(milliseconds_to_hms)
+
+    # LOAD ------------------------------------------------
 
     with open("spotify-data.csv", 'a', newline="") as outfile:  # *** LOAD
         song_df.to_csv(outfile, header=False, encoding="utf-8")
-
-# Transform (the data so it's useful, i.e. removing duplicates)
-# Load (into your database)
-
