@@ -7,9 +7,12 @@ from spotipy.oauth2 import SpotifyOAuth
 import pandas
 import csv
 import datetime
-import pytz
+import sqlalchemy
+import sqlite3
 from pytz import timezone
-# print(pytz.common_timezones)
+
+
+DATABASE_LOCATION = "sqlite:///played_tracks.sqlite"
 
 
 def milliseconds_to_hms(ms):
@@ -17,21 +20,21 @@ def milliseconds_to_hms(ms):
     s, ms = divmod(ms, 1000)
     m, s = divmod(s, 60)
     h, m = divmod(m, 60)
+
+    # Adds zero padding if number is less than 10
+    if h < 10:
+        h = str(h).zfill(2)
+    if m < 10:
+        m = str(m).zfill(2)
+    if s < 10:
+        s = str(s).zfill(2)
+
     return f"{h}:{m}:{s}"
 
 
-def get_timestamps_from_csv(filename):
-    """Collects the timestamps from rows in a preexisting csv into a list."""
-    csv_timestamps = []
-    with open(f"{filename}", "r") as infile:
-        csv_file = csv.reader(infile)
-        for row in csv_file:
-            csv_timestamps += [row[6]]
-    return csv_timestamps
-
-
-def convert_to_ascii(string):
-    """"""
+def handle_unicode_errors(string):
+    """If the string cannot be encoded in ASCII, returns the string
+    encoded in UTF-8 so pandas to_csv won't break."""
     try:
         string.encode(encoding='utf-8').decode('ascii')
     except UnicodeDecodeError:
@@ -40,6 +43,7 @@ def convert_to_ascii(string):
 
 
 def convert_timestamp_to_pfc(timestamp):
+    """Transforms timestamp from Stockholm time to Seattle time."""
     stockholm = timezone("Europe/Stockholm")
     seattle = timezone("US/Pacific")
 
@@ -68,12 +72,7 @@ if __name__ == "__main__":
     duration = []
     timestamps = []
 
-    # Calculate current timestamp and a timestamp 24 hours ago from now
-    today = datetime.datetime.now()
-    now_unix_timestamp = int(today.timestamp()) * 1000
-    yesterday_unix_timestamp = now_unix_timestamp - 86400
-
-    # Request access for recently played songs within the given time frame
+    # Request access for recently played songs
     results = sp.current_user_recently_played(limit=50)
 
     # Add data to the appropriate list
@@ -113,10 +112,47 @@ if __name__ == "__main__":
     # Convert timestamps to US/Pacific time
     song_df["timestamps"] = song_df["timestamps"].apply(convert_timestamp_to_pfc)
 
+    # Remove rows with songs that weren't played yesterday:
+    index = 0
+    today = datetime.datetime.now()
+    yesterday = today - datetime.timedelta(days=1)
+    for timestamp in song_df["timestamps"]:
+        if str(timestamp)[0:10] != str(yesterday)[0:10]:
+            song_df = song_df.drop([index])
+        index += 1
+
     # Convert song lengths to h:m:s strings
     song_df["duration"] = song_df["duration"].apply(milliseconds_to_hms)
 
     # LOAD ------------------------------------------------
 
-    with open("spotify-data.csv", 'a', newline="") as outfile:  # *** LOAD
+    # Appends new data to a CSV
+    with open("spotify-data.csv", 'a', newline="") as outfile:
         song_df.to_csv(outfile, header=False, encoding="utf-8")
+
+    # Connects to a database
+    engine = sqlalchemy.create_engine(DATABASE_LOCATION)
+    connection = sqlite3.connect("played_tracks.sqlite")
+    cursor = connection.cursor()
+
+    # Creates database headers if the database does not exist
+    sql_query = """
+    CREATE TABLE IF NOT EXISTS played_tracks (
+        song_name VARCHAR(200),
+        album_name VARCHAR(200),
+        artist_name VARCHAR(200),
+        duration VARCHAR(200),
+        timestamps VARCHAR(200)
+    )
+    """
+
+    cursor.execute(sql_query)
+    print("Opened database successfully!")
+
+    # Loads new spotify data into the database!
+    song_df.to_sql("played_tracks", engine, index=False, if_exists="append")
+
+    connection.close()
+    print("Connection successfully closed.")
+
+
