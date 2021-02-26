@@ -1,11 +1,10 @@
 # Programmer: Colin Joss
-# Last date updated: 2-22-2021
-# Description:
+# Last date updated: 2-25-2021
+# Description: An ETL of my recently played Spotify songs to a simple Sqlite database.
 
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import pandas
-import csv
 import datetime
 import sqlalchemy
 import sqlite3
@@ -32,7 +31,7 @@ def milliseconds_to_hms(ms):
     return f"{h}:{m}:{s}"
 
 
-def handle_unicode_errors(string):
+def handle_unicode_error(string):
     """If the string cannot be encoded in ASCII, returns the string
     encoded in UTF-8 so pandas to_csv won't break."""
     try:
@@ -42,16 +41,16 @@ def handle_unicode_errors(string):
     return string
 
 
-def convert_timestamp_to_pfc(timestamp):
+def convert_timestamp_to_pfc(ts):
     """Transforms timestamp from Stockholm time to Seattle time."""
     stockholm = timezone("Europe/Stockholm")
     seattle = timezone("US/Pacific")
 
-    timestamp = timestamp[0:10] + " " + timestamp[11:19]
-    timestamp_dt_obj = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+    ts = ts[0:10] + " " + ts[11:19]
+    ts_dt_obj = datetime.datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
 
-    timestamp_localized = stockholm.localize(timestamp_dt_obj)
-    return timestamp_localized.astimezone(seattle)
+    ts_localized = stockholm.localize(ts_dt_obj)
+    return ts_localized.astimezone(seattle)
 
 
 if __name__ == "__main__":
@@ -77,9 +76,9 @@ if __name__ == "__main__":
 
     # Add data to the appropriate list
     for song in results["items"]:
-        song_names.append(convert_to_ascii(song["track"]["name"]))
-        album_names.append(convert_to_ascii(song["track"]["album"]["name"]))
-        artist_names.append(convert_to_ascii(song["track"]["album"]["artists"][0]["name"]))
+        song_names.append(handle_unicode_error(song["track"]["name"]))
+        album_names.append(handle_unicode_error(song["track"]["album"]["name"]))
+        artist_names.append(handle_unicode_error(song["track"]["album"]["artists"][0]["name"]))
         duration.append(song["track"]["duration_ms"])
         timestamps.append(song["played_at"])
 
@@ -154,5 +153,3 @@ if __name__ == "__main__":
 
     connection.close()
     print("Connection successfully closed.")
-
-
