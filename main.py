@@ -31,16 +31,6 @@ def milliseconds_to_hms(ms):
     return f"{h}:{m}:{s}"
 
 
-def handle_unicode_error(string):
-    """If the string cannot be encoded in ASCII, returns the string
-    encoded in UTF-8 so pandas to_csv won't break."""
-    try:
-        string.encode(encoding='utf-8').decode('ascii')
-    except UnicodeDecodeError:
-        return string.encode('utf-8')
-    return string
-
-
 def convert_timestamp_to_pfc(ts):
     """Transforms timestamp from Stockholm time to Seattle time."""
     stockholm = timezone("Europe/Stockholm")
@@ -76,9 +66,9 @@ if __name__ == "__main__":
 
     # Add data to the appropriate list
     for song in results["items"]:
-        song_names.append(handle_unicode_error(song["track"]["name"]))
-        album_names.append(handle_unicode_error(song["track"]["album"]["name"]))
-        artist_names.append(handle_unicode_error(song["track"]["album"]["artists"][0]["name"]))
+        song_names.append(song["track"]["name"])
+        album_names.append(song["track"]["album"]["name"])
+        artist_names.append(song["track"]["album"]["artists"][0]["name"])
         duration.append(song["track"]["duration_ms"])
         timestamps.append(song["played_at"])
 
@@ -126,8 +116,8 @@ if __name__ == "__main__":
     # LOAD ------------------------------------------------
 
     # Appends new data to a CSV
-    with open("spotify-data.csv", 'a', newline="") as outfile:
-        song_df.to_csv(outfile, header=False, encoding="utf-8")
+    # with open("spotify-data.csv", 'a', newline="") as outfile:
+    #     song_df.to_csv(outfile, header=False, encoding="utf-8")
 
     # Connects to a database
     engine = sqlalchemy.create_engine(DATABASE_LOCATION)
