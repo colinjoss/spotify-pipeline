@@ -9,6 +9,7 @@ import datetime
 import sqlalchemy
 import sqlite3
 from pytz import timezone
+import secrets
 
 
 DATABASE_LOCATION = "sqlite:///played_tracks.sqlite"
@@ -49,8 +50,8 @@ if __name__ == "__main__":
 
     # Authorize access to my Spotify account
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
-        client_id="7406bc4c83534c57bdc0cf3e8b6991d5",
-        client_secret="6d5fa9a24d444ef89793c953aa88d87a",
+        client_id=secrets.client_id,
+        client_secret=secrets.client_secret,
         redirect_uri="https://www.google.com/",
         scope="user-read-recently-played"))
 
@@ -115,10 +116,7 @@ if __name__ == "__main__":
 
     # LOAD ------------------------------------------------
 
-    # Appends new data to a CSV
-    # with open("spotify-data.csv", 'a', newline="") as outfile:
-    #     song_df.to_csv(outfile, header=False, encoding="utf-8")
-
+    print("Testing 1 2 3")
     # Connects to a database
     engine = sqlalchemy.create_engine(DATABASE_LOCATION)
     connection = sqlite3.connect("played_tracks.sqlite")
